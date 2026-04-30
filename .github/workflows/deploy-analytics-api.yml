@@ -17,7 +17,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -27,18 +28,19 @@ jobs:
 
       - name: Build and push image to Artifact Registry
         env:
-          IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/profit-pilot/analytics-api:${{ github.sha }}
+          IMAGE: ${{ secrets.ARTIFACT_REGISTRY }}/analytics-api:${{ github.sha }}
         run: |
           docker build -t $IMAGE ./analytics-api
           docker push $IMAGE
 
       - name: Deploy to Cloud Run
         env:
-          IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/profit-pilot/analytics-api:${{ github.sha }}
+          IMAGE: ${{ secrets.ARTIFACT_REGISTRY }}/analytics-api:${{ github.sha }}
         run: |
           gcloud run deploy analytics-api \
             --image $IMAGE \
             --region ${{ secrets.GCP_REGION }} \
             --platform managed \
             --allow-unauthenticated \
+            --service-account ${{ secrets.WIF_SERVICE_ACCOUNT }} \
             --set-secrets DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest
