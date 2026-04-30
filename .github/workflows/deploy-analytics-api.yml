@@ -7,6 +7,10 @@ on:
       - 'analytics-api/**'
       - '.github/workflows/deploy-analytics-api.yml'
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
