@@ -6,6 +6,7 @@ on:
     paths:
       - 'analytics-api/**'
       - '.github/workflows/deploy-analytics-api.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read

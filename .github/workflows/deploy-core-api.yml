@@ -6,6 +6,7 @@ on:
     paths:
       - 'core-api/**'
       - '.github/workflows/deploy-core-api.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
