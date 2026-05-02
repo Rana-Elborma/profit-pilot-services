@@ -3,10 +3,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from google.cloud import firestore
 from app import config
 from app.database import get_db
-from app.models import User
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _bearer = HTTPBearer()
@@ -28,8 +27,8 @@ def create_access_token(user_id: str) -> str:
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
-    db: Session = Depends(get_db),
-) -> User:
+    db: firestore.Client = Depends(get_db),
+) -> dict:
     token = credentials.credentials
     try:
         payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
@@ -42,7 +41,9 @@ def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = db.get(User, user_id)
-    if user is None:
+    doc = db.collection("users").document(user_id).get()
+    if not doc.exists:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    user = doc.to_dict()
+    user["id"] = doc.id
     return user

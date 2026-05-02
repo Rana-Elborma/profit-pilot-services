@@ -1,64 +1,71 @@
-from uuid import UUID
+import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from google.cloud import firestore
 from app.database import get_db
-from app.models import User, Product
 from app.schemas import ProductCreate, ProductUpdate, ProductResponse
 from app.deps import get_current_user
 
 router = APIRouter()
 
 
+def _doc_to_product(doc) -> dict:
+    data = doc.to_dict()
+    data["id"] = doc.id
+    return data
+
+
 @router.get("", response_model=list[ProductResponse])
 def list_products(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: firestore.Client = Depends(get_db),
 ):
-    return db.query(Product).filter(Product.user_id == current_user.id).all()
+    docs = db.collection("products").where("user_id", "==", current_user["id"]).get()
+    return [_doc_to_product(d) for d in docs]
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(
     body: ProductCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: firestore.Client = Depends(get_db),
 ):
-    product = Product(**body.model_dump(), user_id=current_user.id)
-    db.add(product)
-    db.commit()
-    db.refresh(product)
-    return product
+    product_id = str(uuid.uuid4())
+    data = body.model_dump()
+    data["user_id"] = current_user["id"]
+    data["created_at"] = datetime.now(timezone.utc)
+    db.collection("products").document(product_id).set(data)
+    data["id"] = product_id
+    return data
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
 def update_product(
-    product_id: UUID,
+    product_id: str,
     body: ProductUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: firestore.Client = Depends(get_db),
 ):
-    product = db.query(Product).filter(
-        Product.id == product_id, Product.user_id == current_user.id
-    ).first()
-    if not product:
+    ref = db.collection("products").document(product_id)
+    doc = ref.get()
+    if not doc.exists or doc.to_dict().get("user_id") != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    for field, value in body.model_dump(exclude_none=True).items():
-        setattr(product, field, value)
-    db.commit()
-    db.refresh(product)
-    return product
+    updates = body.model_dump(exclude_none=True)
+    if updates:
+        ref.update(updates)
+    updated = ref.get().to_dict()
+    updated["id"] = product_id
+    return updated
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_product(
-    product_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    product_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: firestore.Client = Depends(get_db),
 ):
-    product = db.query(Product).filter(
-        Product.id == product_id, Product.user_id == current_user.id
-    ).first()
-    if not product:
+    ref = db.collection("products").document(product_id)
+    doc = ref.get()
+    if not doc.exists or doc.to_dict().get("user_id") != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    db.delete(product)
-    db.commit()
+    ref.delete()

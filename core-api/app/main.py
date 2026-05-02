@@ -2,7 +2,6 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine
 from app.routers.auth import router as auth_router
 from app.routers.products import router as products_router
 from app.routers.transactions import router as transactions_router
@@ -15,8 +14,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("core-api starting up")
     yield
-    logger.info("core-api shutting down — closing DB connections")
-    engine.dispose()
+    logger.info("core-api shutting down")
 
 
 app = FastAPI(title="Profit Pilot Core API", lifespan=lifespan)

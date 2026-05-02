@@ -1,38 +1,30 @@
 services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: profitpilot
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080 --project=profit-pilot-local
     ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - "8080:8080"
 
   core-api:
     build: ./core-api
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/profitpilot
+      FIRESTORE_EMULATOR_HOST: "firestore-emulator:8080"
+      GCP_PROJECT_ID: "profit-pilot-local"
       JWT_SECRET: local-dev-secret-not-for-production
       PORT: 8000
     depends_on:
-      postgres:
-        condition: service_healthy
+      - firestore-emulator
 
   analytics-api:
     build: ./analytics-api
     ports:
       - "8001:8001"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/profitpilot
+      FIRESTORE_EMULATOR_HOST: "firestore-emulator:8080"
+      GCP_PROJECT_ID: "profit-pilot-local"
       JWT_SECRET: local-dev-secret-not-for-production
       PORT: 8001
     depends_on:
-      postgres:
-        condition: service_healthy
+      - firestore-emulator
