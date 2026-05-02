@@ -48,12 +48,4 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --service-account ${{ secrets.WIF_SERVICE_ACCOUNT }} \
-            --set-secrets DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest
-
-      - name: Update migration job image
-        env:
-          IMAGE: ${{ secrets.ARTIFACT_REGISTRY }}/core-api:${{ github.sha }}
-        run: |
-          gcloud run jobs update run-migrations \
-            --image $IMAGE \
-            --region ${{ secrets.GCP_REGION }}
+            --set-secrets JWT_SECRET=JWT_SECRET:latest

@@ -48,4 +48,4 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --service-account ${{ secrets.WIF_SERVICE_ACCOUNT }} \
-            --set-secrets DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest
+            --set-secrets JWT_SECRET=JWT_SECRET:latest
